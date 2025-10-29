@@ -3,7 +3,7 @@ import { useAppContext } from '../../hooks/useAppContext';
 import { Equipment, EquipmentStatus, UserRole } from '../../types';
 import EquipmentCard from './EquipmentCard';
 import Modal from '../ui/Modal';
-import { PlusIcon, UserPlusIcon } from '../ui/Icons';
+import { PlusIcon, UserPlusIcon, ArrowPathIcon } from '../ui/Icons';
 
 // --- Reusable Form Components ---
 interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -33,7 +33,7 @@ const SelectField: React.FC<SelectFieldProps> = ({ label, id, children, ...props
 
 // --- Main Component ---
 const EquipmentList: React.FC = () => {
-    const { currentUser, equipment, addEquipment, updateEquipment, deleteEquipment, rentEquipment, returnEquipment, rentals, addUser } = useAppContext();
+    const { currentUser, equipment, addEquipment, updateEquipment, deleteEquipment, rentEquipment, returnEquipment, rentals, addUser, resetApplication } = useAppContext();
     const isManager = currentUser?.role === UserRole.MANAGER;
 
     const [isEqModalOpen, setIsEqModalOpen] = useState(false);
@@ -130,6 +130,12 @@ const EquipmentList: React.FC = () => {
         closeModals();
     }
 
+    const handleResetClick = () => {
+        if (window.confirm('سيؤدي هذا إلى حذف جميع البيانات (المعدات، الإيجارات، السجلات، المستخدمون) وإعادة التطبيق إلى حالته الأولية. هل أنت متأكد تماماً؟')) {
+            resetApplication();
+        }
+    };
+
     const filteredEquipment = useMemo(() => {
         return equipment
             .filter(eq => filter === 'all' || eq.status === filter)
@@ -157,12 +163,15 @@ const EquipmentList: React.FC = () => {
                     <button onClick={() => setFilter(EquipmentStatus.MAINTENANCE)} className={`px-4 py-2 text-sm rounded-md transition-colors ${filter === EquipmentStatus.MAINTENANCE ? 'bg-yellow-500 text-gray-800 font-semibold' : 'hover:bg-accent'}`}>{EquipmentStatus.MAINTENANCE}</button>
                 </div>
                 {isManager && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap justify-center gap-2">
                         <button onClick={() => openEqModal()} className="bg-primary hover:bg-primary-dark text-secondary font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-transform hover:scale-105">
                             <PlusIcon className="h-5 w-5"/> <span>أداة جديدة</span>
                         </button>
                         <button onClick={() => setIsUserModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-transform hover:scale-105">
                            <UserPlusIcon className="h-5 w-5"/> <span>عامل جديد</span>
+                        </button>
+                        <button onClick={handleResetClick} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-transform hover:scale-105">
+                           <ArrowPathIcon className="h-5 w-5"/> <span>إعادة تعيين</span>
                         </button>
                     </div>
                 )}

@@ -21,6 +21,7 @@ export interface AppContextType {
   deleteEquipment: (id: string) => Promise<void>;
   rentEquipment: (rentalData: Omit<Rental, 'id' | 'startTime' | 'workerId' | 'workerUsername' | 'equipmentName'>) => Promise<void>;
   returnEquipment: (equipmentId: string) => Promise<void>;
+  resetApplication: () => Promise<void>;
 }
 
 interface AppProviderProps {
@@ -258,6 +259,37 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   };
 
+  const resetApplication = async () => {
+    if (currentUser?.role !== UserRole.MANAGER) {
+        alert("You don't have permission for this action.");
+        return;
+    }
+
+    const deleteCollection = async (collectionName: string) => {
+        const q = query(collection(db, collectionName));
+        const querySnapshot = await getDocs(q);
+        const deletePromises: Promise<void>[] = [];
+        querySnapshot.forEach((docSnapshot) => {
+            deletePromises.push(deleteDoc(doc(db, collectionName, docSnapshot.id)));
+        });
+        await Promise.all(deletePromises);
+        console.log(`Collection "${collectionName}" has been deleted.`);
+    };
+
+    try {
+        await deleteCollection("equipment");
+        await deleteCollection("rentals");
+        await deleteCollection("activityLog");
+        await deleteCollection("users");
+        await deleteDoc(doc(db, "_internal", "app_status"));
+        console.log("Application data reset successfully.");
+        logout();
+    } catch (error) {
+        console.error("Error resetting application: ", error);
+        alert("An error occurred while resetting the application. Check the console for details.");
+    }
+  };
+
   const contextValue = useMemo(() => ({
     currentUser,
     users,
@@ -272,6 +304,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     deleteEquipment,
     rentEquipment,
     returnEquipment,
+    resetApplication,
   }), [currentUser, users, equipment, rentals, activityLog]);
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
