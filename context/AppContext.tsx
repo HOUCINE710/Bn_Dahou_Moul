@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useMemo, useEffect } from 'react';
-import { collection, onSnapshot, query, where, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, Timestamp, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { User, UserRole, Equipment, EquipmentStatus, Rental, ActivityLog, ActivityType } from '../types';
 import { INITIAL_USERS, INITIAL_EQUIPMENT } from '../constants';
@@ -47,28 +47,47 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   // Seed database on first load if it's empty
   useEffect(() => {
     const seedDatabase = async () => {
+      const statusDocRef = doc(db, "_internal", "app_status");
       try {
+        const statusDoc = await getDoc(statusDocRef);
+
+        // If the status doc exists and isSeeded is true, don't seed again.
+        if (statusDoc.exists() && statusDoc.data().isSeeded) {
+          return;
+        }
+
+        console.log("Checking if database needs seeding...");
+        // As a fallback, check if users collection is truly empty
         const usersQuery = query(collection(db, "users"));
         const usersSnapshot = await getDocs(usersQuery);
+
         if (usersSnapshot.empty) {
-          console.log("Database is empty. Seeding initial data...");
-          
-          // Seed users
-          for (const user of INITIAL_USERS) {
-            const { id, ...userData } = user; // Firestore generates its own ID
-            await addDoc(collection(db, "users"), userData);
-          }
-          
-          // Seed equipment
-          for (const eq of INITIAL_EQUIPMENT) {
-            const { id, ...eqData } = eq;
-            await addDoc(collection(db, "equipment"), eqData);
-          }
-          console.log("Seeding complete.");
-          // Optional: Reload or notify user to refresh
+            console.log("Database is empty. Seeding initial data...");
+
+            // Seed users
+            for (const user of INITIAL_USERS) {
+              const { id, ...userData } = user; // Firestore generates its own ID
+              await addDoc(collection(db, "users"), userData);
+            }
+            
+            // Seed equipment
+            for (const eq of INITIAL_EQUIPMENT) {
+              const { id, ...eqData } = eq;
+              await addDoc(collection(db, "equipment"), eqData);
+            }
+
+            // After successful seeding, set the flag
+            await setDoc(statusDocRef, { isSeeded: true, seededAt: serverTimestamp() });
+
+            console.log("Seeding complete.");
+        } else if (!statusDoc.exists()) {
+            // Data exists but flag was missing. Set the flag to prevent future checks.
+            console.log("Data found, but seed flag was missing. Setting flag.");
+            await setDoc(statusDocRef, { isSeeded: true });
         }
+
       } catch (error) {
-        console.error("Error seeding database: ", error);
+        console.error("Error during database seeding check: ", error);
       }
     };
     seedDatabase();
